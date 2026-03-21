@@ -1,0 +1,20 @@
+[toolchain]
+package_manager = "npm"
+anchor_version = "0.32.1"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+shadow_mafia = "4jEx2Z526KdKe97TKqf7kZnkdM3LBDtH6Et5n2cJnam8"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npm run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""

@@ -1,0 +1,22 @@
+{
+  "name": "shadow-mafia-server",
+  "version": "1.0.0",
+  "description": "Shadow Mafia game relay server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.95.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "socket.io-client": "^4.8.3"
+  }
+}

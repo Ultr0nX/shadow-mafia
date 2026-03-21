@@ -1,0 +1,130 @@
+{
+  "address": "5eqgph5bzEuZkfVRvXQr2Fq58iY721SUYfieuJSueZWS",
+  "metadata": {
+    "name": "shadow_mafia",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Shadow Mafia — Private On-Chain Social Deduction"
+  },
+  "instructions": [
+    {
+      "name": "create_game",
+      "discriminator": [124, 69, 75, 66, 184, 220, 72, 206],
+      "accounts": [
+        {
+          "name": "game_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [115, 104, 97, 100, 111, 119, 95, 109, 97, 102, 105, 97, 95, 103, 97, 109, 101] },
+              { "kind": "arg", "path": "game_id" }
+            ]
+          }
+        },
+        { "name": "host", "writable": true, "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "game_id", "type": "u64" },
+        { "name": "stake_lamports", "type": "u64" },
+        { "name": "max_players", "type": "u8" }
+      ]
+    },
+    {
+      "name": "join_game",
+      "discriminator": [107, 112, 18, 38, 56, 173, 60, 128],
+      "accounts": [
+        {
+          "name": "game_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [115, 104, 97, 100, 111, 119, 95, 109, 97, 102, 105, 97, 95, 103, 97, 109, 101] },
+              { "kind": "arg", "path": "game_id" }
+            ]
+          }
+        },
+        {
+          "name": "player_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [115, 104, 97, 100, 111, 119, 95, 109, 97, 102, 105, 97, 95, 112, 108, 97, 121, 101, 114] },
+              { "kind": "arg", "path": "game_id" },
+              { "kind": "account", "path": "player" }
+            ]
+          }
+        },
+        { "name": "player", "writable": true, "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "game_id", "type": "u64" }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GameState",
+      "discriminator": [144, 94, 208, 172, 248, 99, 134, 120]
+    },
+    {
+      "name": "PlayerState",
+      "discriminator": [216, 114, 194, 24, 84, 195, 224, 32]
+    }
+  ],
+  "types": [
+    {
+      "name": "GamePhase",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Lobby" },
+          { "name": "Night" },
+          { "name": "Day" },
+          { "name": "GameOver" }
+        ]
+      }
+    },
+    {
+      "name": "Role",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Citizen" },
+          { "name": "Mafia" },
+          { "name": "Detective" }
+        ]
+      }
+    },
+    {
+      "name": "Winner",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "None" },
+          { "name": "Citizens" },
+          { "name": "Mafia" }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidPlayerCount", "msg": "Need 4-8 players" },
+    { "code": 6001, "name": "InvalidStake", "msg": "Stake must be > 0" },
+    { "code": 6002, "name": "GameAlreadyStarted", "msg": "Game already started" },
+    { "code": 6003, "name": "GameFull", "msg": "Game is full" },
+    { "code": 6004, "name": "AlreadyJoined", "msg": "Already joined" },
+    { "code": 6005, "name": "NotEnoughPlayers", "msg": "Need at least 4 players to start" },
+    { "code": 6006, "name": "NotHost", "msg": "Only host can do this" },
+    { "code": 6007, "name": "WrongPhase", "msg": "Wrong game phase" },
+    { "code": 6008, "name": "NotMafia", "msg": "Only Mafia can night vote" },
+    { "code": 6009, "name": "PlayerEliminated", "msg": "Player is eliminated" },
+    { "code": 6010, "name": "AlreadyVoted", "msg": "Already voted this round" },
+    { "code": 6011, "name": "InvalidTarget", "msg": "Invalid target" },
+    { "code": 6012, "name": "TargetEliminated", "msg": "Target is eliminated" },
+    { "code": 6013, "name": "CannotVoteSelf", "msg": "Cannot vote for yourself" },
+    { "code": 6014, "name": "GameNotOver", "msg": "Game is not over" },
+    { "code": 6015, "name": "NoWinners", "msg": "No winners" }
+  ]
+}

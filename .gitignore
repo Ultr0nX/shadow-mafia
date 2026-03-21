@@ -1,0 +1,15 @@
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+
+# Never commit these — set via env vars on Railway/Vercel
+server/server-keypair.json
+server/.env
+app/.env
+app/.env.local
+.env
+.env.local
