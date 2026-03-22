@@ -1053,12 +1053,8 @@ io.on("connection", (socket) => {
       message: `Roles sealed in Private ER (VRF: ${seedHash}).`,
     });
 
-    for (const [wallet, player] of Object.entries(game.players)) {
-      io.to(player.socketId).emit("role_assigned", {
-        role: player.role,
-        message: getRoleMessage(player.role, wallet, game),
-      });
-    }
+    // NOTE: roles are NOT sent to players yet — wait for ER sync first
+    // so clients always get the authoritative ER role, never the JS-computed one
 
     if (game.numericId) {
       const numId = game.numericId;
@@ -1073,7 +1069,7 @@ io.on("connection", (socket) => {
           if (games[gameId]) { games[gameId].teeEnabled = true; games[gameId].teeSigs.delegateGame = delSig; }
           console.log(`[TEE ✓] Game ${gameId} delegated to ER: ${delSig}`);
           io.to(gameId).emit("tee_update", { action: "delegateGame", txSig: delSig, status: "ok" });
-          await new Promise(r => setTimeout(r, 2000)); // let delegation finalize
+          await new Promise(r => setTimeout(r, 2000));
 
           // ── Step B: Delegate each player's PlayerState to ER ──────────────
           for (const wallet of allWallets) {
@@ -1091,27 +1087,13 @@ io.on("connection", (socket) => {
           console.log(`[TEE ✓] ${gameId} assignRoles (VRF + roles on-chain): ${sig}`);
           io.to(gameId).emit("tee_update", { action: "assignRoles", txSig: sig, status: "ok" });
 
-          // ── Step D: Read TEE-assigned roles from ER (server reads, not computes) ──
-          await new Promise(r => setTimeout(r, 2000)); // let ER propagate
+          // ── Step D: Read TEE-assigned roles from ER ──────────────────────
+          await new Promise(r => setTimeout(r, 2000));
           const erRoles = await readGameRolesFromER(numId);
           if (erRoles) {
-            // Sync server-side player roles to match what TEE assigned
+            // Overwrite JS roles with authoritative ER roles
             for (const [wallet, erRole] of Object.entries(erRoles)) {
-              if (game.players[wallet]) {
-                const jsRole = game.players[wallet].role;
-                if (jsRole !== erRole) {
-                  console.log(`[TEE] Role sync: ${wallet.slice(0,8)}... JS=${jsRole} → ER=${erRole}`);
-                  game.players[wallet].role = erRole;
-                  // Re-notify player of corrected ER role
-                  const p = game.players[wallet];
-                  if (p?.socketId) {
-                    io.to(p.socketId).emit("role_assigned", {
-                      role: erRole,
-                      message: getRoleMessage(erRole, wallet, game),
-                    });
-                  }
-                }
-              }
+              if (game.players[wallet]) game.players[wallet].role = erRole;
             }
             const erPlayerRoleMap = Object.fromEntries(Object.entries(erRoles).filter(([w]) => game.players[w]));
             if (Object.keys(erPlayerRoleMap).length > 0) {
@@ -1119,20 +1101,42 @@ io.on("connection", (socket) => {
               io.to(gameId).emit("tee_update", { action: "setPlayerRoles", status: "ok" });
             }
           } else {
-            // Fallback: use JS-computed roles (same algorithm, same result)
+            // Fallback: use JS-computed roles
             if (allWallets.length > 0) {
               await teeSetPlayerRoles(numId, roles);
               io.to(gameId).emit("tee_update", { action: "setPlayerRoles", status: "ok" });
             }
           }
+
+          // ── Step E: NOW send roles to players (always authoritative) ──────
+          for (const [wallet, player] of Object.entries(game.players)) {
+            io.to(player.socketId).emit("role_assigned", {
+              role: player.role,
+              message: getRoleMessage(player.role, wallet, game),
+            });
+          }
         } catch (e) {
           console.error(`[TEE] Role setup failed ${gameId}:`, e?.message?.slice(0,150));
           io.to(gameId).emit("tee_update", { action: "assignRoles", status: "failed" });
+          // Fallback: send JS-computed roles so players aren't stuck waiting
+          for (const [wallet, player] of Object.entries(game.players || {})) {
+            io.to(player.socketId).emit("role_assigned", {
+              role: player.role,
+              message: getRoleMessage(player.role, wallet, game),
+            });
+          }
         } finally {
           startNightPhase(gameId);
         }
       })();
     } else {
+      // No on-chain game — send roles immediately and start night
+      for (const [wallet, player] of Object.entries(game.players)) {
+        io.to(player.socketId).emit("role_assigned", {
+          role: player.role,
+          message: getRoleMessage(player.role, wallet, game),
+        });
+      }
       setTimeout(() => startNightPhase(gameId), 3500);
     }
 
