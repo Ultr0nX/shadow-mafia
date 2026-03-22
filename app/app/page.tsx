@@ -824,7 +824,7 @@ const GAME_SEED = Buffer.from("shadow_mafia_game");
 const PLAYER_SEED = Buffer.from("shadow_mafia_player");
 
 // ── Private Ephemeral Rollup (TEE) constants ──────────────────────────────
-const TEE_ENDPOINT = "https://tee.magicblock.app";
+const TEE_ENDPOINT = process.env.NEXT_PUBLIC_TEE_ENDPOINT || "https://devnet.magicblock.app";
 const SESSION_KEYS_PROGRAM_ID = new PublicKey("KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5");
 const DELEGATION_PROGRAM_KEY = new PublicKey("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 const MAGIC_PROGRAM_KEY = new PublicKey("Magic11111111111111111111111111111111111111");
