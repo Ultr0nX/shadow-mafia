@@ -18,7 +18,7 @@ const WalletMultiButton = dynamic(
 );
 
 type Phase = "Lobby" | "Starting" | "Night" | "Day" | "GameOver";
-type Role = "Mafia" | "Citizen" | "Detective" | "Doctor" | null;
+type Role = "Mafia" | "Citizen" | "Doctor" | null;
 
 interface Player { walletAddress: string; username: string; isEliminated: boolean; }
 interface ChatMessage { walletAddress: string; username: string; text: string; timestamp: number; isGhost?: boolean; }
@@ -59,7 +59,6 @@ function GameCharacter({ isEliminated, isSelected, isMe, revealedRole, isDying, 
   theme: typeof CLOAK_THEMES[0]; voteCount: number;
 }) {
   const eyeColor = revealedRole === "Mafia" ? "#ff2222"
-    : revealedRole === "Detective" ? "#2299ff"
     : revealedRole === "Doctor" ? "#33ee88"
     : revealedRole === "Citizen" ? "#ffffff"
     : "#ddaa88";
@@ -231,7 +230,7 @@ function useSoundEngine() {
   }, []);
 
   // ── One-shot note helper ───────────────────────────────────────────────
-  const play = useCallback((type: "vote" | "select" | "button" | "join" | "create" | "eliminate" | "night" | "day" | "role" | "protect" | "investigate" | "heartbeat" | "win" | "whoosh") => {
+  const play = useCallback((type: "vote" | "select" | "button" | "join" | "create" | "eliminate" | "night" | "day" | "role" | "protect" | "heartbeat" | "win" | "whoosh") => {
     const ctx = ctxRef.current; const mg = masterGain.current;
     if (!ctx || !mg) return;
     const now = ctx.currentTime;
@@ -284,9 +283,6 @@ function useSoundEngine() {
     }
     if (type === "protect") {
       [523.3, 659.3, 784, 1046.5].forEach((f, i) => note(f, 0.4, 0.08, "triangle", i * 0.08));
-    }
-    if (type === "investigate") {
-      note(1174.7, 0.12, 0.1, "sine"); note(880, 0.2, 0.09, "sine", 0.1); note(1046.5, 0.35, 0.08, "sine", 0.22);
     }
     if (type === "heartbeat") {
       note(60, 0.12, 0.2, "sine"); note(50, 0.18, 0.18, "sine", 0.08);
@@ -616,7 +612,6 @@ function HowToPlay() {
   const [open, setOpen] = useState(false);
   const roles = [
     { icon: "🗡️", name: "MAFIA", color: "#ff4455", bg: "rgba(180,20,20,0.12)", desc: "Choose one player to eliminate each night. Stay hidden from Citizens." },
-    { icon: "🔍", name: "DETECTIVE", color: "#5599ff", bg: "rgba(20,60,200,0.12)", desc: "Secretly investigate one player per night to discover their role." },
     { icon: "💉", name: "DOCTOR", color: "#44dd88", bg: "rgba(20,160,80,0.12)", desc: "Protect a player from elimination each night. Cannot protect the same person twice. (5+ players)" },
     { icon: "🛡️", name: "CITIZEN", color: "#cccccc", bg: "rgba(100,100,100,0.1)", desc: "Discuss, deduce, and vote to eliminate suspects during the day." },
   ];
@@ -676,7 +671,7 @@ function HowToPlay() {
                 <div className="space-y-3">
                   <div className="rounded-lg p-3" style={{ background: "rgba(40,20,80,0.2)", border: "1px solid rgba(120,80,220,0.2)" }}>
                     <p className="text-xs font-black mb-1" style={{ color: "#aa88ff" }}>🌑 NIGHT PHASE</p>
-                    <p className="text-xs leading-4" style={{ color: "#888" }}>Mafia secretly votes on who to eliminate. Detective investigates one player. Doctor protects one player. Actions are sealed in the TEE — no one sees them.</p>
+                    <p className="text-xs leading-4" style={{ color: "#888" }}>Mafia secretly votes on who to eliminate. Doctor protects one player. Actions are sealed in the TEE — no one sees them.</p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "rgba(80,30,10,0.2)", border: "1px solid rgba(220,100,20,0.2)" }}>
                     <p className="text-xs font-black mb-1" style={{ color: "#ffaa44" }}>☀️ DAY PHASE</p>
@@ -989,10 +984,6 @@ export default function Home() {
     socket.on("protect_confirmed", ({ targetUsername }: { targetWallet: string; targetUsername: string }) => {
       playSound("protect"); setSavedMsg(`💉 Protecting ${targetUsername} tonight`);
       setTimeout(() => setSavedMsg(""), 4000);
-    });
-    socket.on("investigation_result", ({ message, isMafia }: { targetWallet: string; targetUsername: string; isMafia: boolean; message: string }) => {
-      playSound("investigate");
-      notify(`🔍 ${message}`);
     });
     socket.on("chat_message", (msg: ChatMessage) => {
       setChat(prev => [...prev, msg]);
@@ -1589,11 +1580,6 @@ export default function Home() {
       setVoteInFlight(false);
     }
   }, [selectedTarget, hasVoted, voteInFlight, publicKey, numericGameId, discDayVoteIx, walletAddress, gameId, submitDayVoteOnChain]);
-  function submitInvestigation() {
-    if (!selectedTarget) return;
-    notify("🔍 Investigating...");
-    socketRef.current?.emit("investigate", { gameId, detectiveWallet: walletAddress, targetWallet: selectedTarget });
-  }
   async function submitProtect() {
     if (!selectedTarget || hasProtected) return;
     if (!publicKey || !numericGameId || !discDoctorProtect) { notify("Wallet not connected."); return; }
@@ -1663,7 +1649,7 @@ export default function Home() {
 
   const mePlayer = players.find(p => p.walletAddress === walletAddress);
   const amEliminated = mePlayer?.isEliminated || false;
-  const roleColor = myRole === "Mafia" ? "#ff3333" : myRole === "Detective" ? "#3388ff" : myRole === "Doctor" ? "#44cc77" : "#aaaaaa";
+  const roleColor = myRole === "Mafia" ? "#ff3333" : myRole === "Doctor" ? "#44cc77" : "#aaaaaa";
   const timerLow = phaseTimer > 0 && phaseTimer <= 10;
 
   return (
@@ -1830,7 +1816,7 @@ export default function Home() {
               style={{ background: "rgba(255,255,255,0.03)", color: "#f5e8c0", border: "1px solid rgba(180,80,20,0.3)", fontFamily: "monospace" }}
               onFocus={e => e.target.style.borderColor = "rgba(255,140,40,0.6)"}
               onBlur={e => e.target.style.borderColor = "rgba(180,80,20,0.3)"} />
-            <p className="text-xs mb-5" style={{ color: "#888888" }}>4–5 players: 1 Mafia · 1 Detective · Citizens<br />5+ players: +Doctor added · 6+: 2 Mafia</p>
+            <p className="text-xs mb-5" style={{ color: "#888888" }}>4–5 players: 1 Mafia · Citizens<br />5+ players: +Doctor added · 6+: 2 Mafia</p>
             <button onClick={createGame} className="w-full rounded-xl py-4 font-black tracking-widest transition-all"
               style={{ background: "linear-gradient(135deg,#7a0a0a,#420000)", color: "#ffccaa", border: "1px solid rgba(200,60,20,0.5)", boxShadow: "0 0 25px rgba(180,20,0,0.4), inset 0 1px 0 rgba(255,100,50,0.12)" }}
               onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 40px rgba(220,40,0,0.7), inset 0 1px 0 rgba(255,120,60,0.2)")}
@@ -1883,23 +1869,22 @@ export default function Home() {
                 <div className="w-52 rounded-3xl border-2 flex flex-col items-center justify-center p-8 mx-auto mb-5"
                   style={{
                     minHeight: 280,
-                    background: myRole === "Mafia" ? "#160004" : myRole === "Detective" ? "#00081a" : myRole === "Doctor" ? "#001a08" : "#0e0e0e",
-                    borderColor: myRole === "Mafia" ? "#cc1111" : myRole === "Detective" ? "#1144cc" : myRole === "Doctor" ? "#11aa44" : "#555",
+                    background: myRole === "Mafia" ? "#160004" : myRole === "Doctor" ? "#001a08" : "#0e0e0e",
+                    borderColor: myRole === "Mafia" ? "#cc1111" : myRole === "Doctor" ? "#11aa44" : "#555",
                     boxShadow: myRole === "Mafia" ? "0 0 80px rgba(255,0,0,0.55), inset 0 0 40px rgba(100,0,0,0.3)"
-                      : myRole === "Detective" ? "0 0 80px rgba(0,80,255,0.55), inset 0 0 40px rgba(0,20,100,0.3)"
                       : myRole === "Doctor" ? "0 0 80px rgba(0,200,80,0.55), inset 0 0 40px rgba(0,60,20,0.3)"
                       : "0 0 50px rgba(150,150,150,0.3)",
                   }}>
                   <div className="text-7xl mb-5" style={{ animation: "sway 2s ease-in-out infinite" }}>
-                    {myRole === "Mafia" ? "🗡️" : myRole === "Detective" ? "🔍" : myRole === "Doctor" ? "💉" : "🛡️"}
+                    {myRole === "Mafia" ? "🗡️" : myRole === "Doctor" ? "💉" : "🛡️"}
                   </div>
-                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: myRole === "Mafia" ? "#aa3333" : myRole === "Detective" ? "#3355aa" : myRole === "Doctor" ? "#33aa55" : "#777" }}>You are the</div>
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: myRole === "Mafia" ? "#aa3333" : myRole === "Doctor" ? "#33aa55" : "#777" }}>You are the</div>
                   <div className="text-3xl font-black tracking-widest mb-5" style={{ color: roleColor }}>{myRole.toUpperCase()}</div>
                   <p className="text-xs leading-relaxed text-center" style={{ color: "#555" }}>{roleMessage}</p>
                 </div>
                 <p className="text-xs mb-4" style={{ color: "#44cc77" }}>🔒 Sealed in cryptographic vault — no one else can see this</p>
                 <button onClick={() => setShowRoleModal(false)} className="px-10 py-3 rounded-xl font-black tracking-widest text-white transition"
-                  style={{ background: myRole === "Mafia" ? "#5a0000" : myRole === "Detective" ? "#001555" : myRole === "Doctor" ? "#004422" : "#222", boxShadow: `0 0 22px ${roleColor}44` }}>
+                  style={{ background: myRole === "Mafia" ? "#5a0000" : myRole === "Doctor" ? "#004422" : "#222", boxShadow: `0 0 22px ${roleColor}44` }}>
                   I AM READY
                 </button>
               </div>
@@ -1923,8 +1908,8 @@ export default function Home() {
                   {players.map(p => (
                     <div key={p.walletAddress} className="flex items-center justify-between text-xs px-2 py-1 rounded" style={{ background: "rgba(255,255,255,0.02)" }}>
                       <span className={p.isEliminated ? "line-through text-gray-400" : "text-gray-300"}>{p.walletAddress === walletAddress ? "👤 " : ""}{p.username}</span>
-                      <span className="font-black" style={{ color: gameResult.allRoles[p.walletAddress] === "Mafia" ? "#ff3333" : gameResult.allRoles[p.walletAddress] === "Detective" ? "#3399ff" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "#33cc66" : "#666" }}>
-                        {gameResult.allRoles[p.walletAddress] === "Mafia" ? "🗡️" : gameResult.allRoles[p.walletAddress] === "Detective" ? "🔍" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "💉" : "🛡️"} {gameResult.allRoles[p.walletAddress]}
+                      <span className="font-black" style={{ color: gameResult.allRoles[p.walletAddress] === "Mafia" ? "#ff3333" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "#33cc66" : "#666" }}>
+                        {gameResult.allRoles[p.walletAddress] === "Mafia" ? "🗡️" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "💉" : "🛡️"} {gameResult.allRoles[p.walletAddress]}
                       </span>
                     </div>
                   ))}
@@ -1997,7 +1982,7 @@ export default function Home() {
               {myRole ? (
                 <button onClick={() => { setShowRoleModal(true); playSound("role"); }} className="text-xs font-black tracking-widest px-3 py-1 rounded-full border transition hover:scale-105"
                   style={{ color: roleColor, background: roleColor + "18", borderColor: roleColor + "44" }}>
-                  {myRole === "Mafia" ? "🗡️" : myRole === "Detective" ? "🔍" : myRole === "Doctor" ? "💉" : "🛡️"} {myRole}
+                  {myRole === "Mafia" ? "🗡️" : myRole === "Doctor" ? "💉" : "🛡️"} {myRole}
                 </button>
               ) : <p className="text-xs" style={{ color: "#888" }}>{username}</p>}
               <p className="text-xs mt-0.5" style={{ color: connected ? "#44aa66" : "#aa4444" }}>{connected ? "● live" : "○ offline"}</p>
@@ -2012,7 +1997,7 @@ export default function Home() {
               const isMe = p.walletAddress === walletAddress;
               const isDying = dyingWallet === p.walletAddress;
               const canSelect = !p.isEliminated && !isMe &&
-                (phase === "Night" ? (myRole === "Mafia" || myRole === "Detective" || myRole === "Doctor") : phase === "Day");
+                (phase === "Night" ? (myRole === "Mafia" || myRole === "Doctor") : phase === "Day");
               const revealed = gameResult?.allRoles[p.walletAddress] as Role || (isMe ? myRole : null);
               const theme = getCloakTheme(i);
               // Only show per-player vote counts AFTER the round ends — never during active voting
@@ -2038,7 +2023,7 @@ export default function Home() {
 
                   {/* Crosshair */}
                   {isSelected && !p.isEliminated && (
-                    <CrosshairOverlay color={phase === "Night" && myRole === "Detective" ? "#2288ff" : phase === "Night" && myRole === "Doctor" ? "#44cc77" : "#ff2222"} />
+                    <CrosshairOverlay color={phase === "Night" && myRole === "Doctor" ? "#44cc77" : "#ff2222"} />
                   )}
 
                   {/* Cloak color glow ring for self */}
@@ -2055,7 +2040,7 @@ export default function Home() {
                       : "none",
                     filter: p.isEliminated ? "grayscale(1) brightness(0.28)"
                       : isDying ? `drop-shadow(0 0 22px #ff0000) brightness(1.6)`
-                      : isSelected ? `drop-shadow(0 0 16px ${phase === "Night" && myRole === "Detective" ? "#2288ff" : "#ff2222"})`
+                      : isSelected ? `drop-shadow(0 0 16px #ff2222)`
                       : isMe ? `drop-shadow(0 0 10px ${theme.glow}aa)` : "none",
                     opacity: p.isEliminated ? 0.38 : 1,
                     transition: "filter 0.3s, opacity 0.6s",
@@ -2113,7 +2098,7 @@ export default function Home() {
                     }}>
                     {isMe ? "👤 " : ""}{p.username}
                     {gameResult?.allRoles[p.walletAddress] && (
-                      <span style={{ marginLeft: 4, color: gameResult.allRoles[p.walletAddress] === "Mafia" ? "#ff3333" : gameResult.allRoles[p.walletAddress] === "Detective" ? "#3399ff" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "#33cc66" : "#666" }}>
+                      <span style={{ marginLeft: 4, color: gameResult.allRoles[p.walletAddress] === "Mafia" ? "#ff3333" : gameResult.allRoles[p.walletAddress] === "Doctor" ? "#33cc66" : "#666" }}>
                         ({gameResult.allRoles[p.walletAddress]})
                       </span>
                     )}
@@ -2123,8 +2108,8 @@ export default function Home() {
                   {isSelected && phase !== "Lobby" && (
                     <div className="text-xs font-black tracking-widest absolute whitespace-nowrap"
                       style={{ bottom: "-18px", left: "50%", animation: "targetBounce 1s ease-in-out infinite",
-                        color: phase === "Night" && myRole === "Detective" ? "#2288ff" : phase === "Night" && myRole === "Doctor" ? "#44cc77" : "#ff2222" }}>
-                      ▲ {phase === "Night" && myRole === "Detective" ? "INVESTIGATE" : phase === "Night" && myRole === "Doctor" ? "PROTECT" : "TARGET"}
+                        color: phase === "Night" && myRole === "Doctor" ? "#44cc77" : "#ff2222" }}>
+                      ▲ {phase === "Night" && myRole === "Doctor" ? "PROTECT" : "TARGET"}
                     </div>
                   )}
                 </div>
@@ -2156,13 +2141,6 @@ export default function Home() {
                 <button onClick={submitMafiaVote} disabled={!selectedTarget || hasVoted} className="flex-1 rounded-xl py-3 font-black tracking-widest text-sm transition-all"
                   style={{ background: hasVoted ? "rgba(18,18,18,0.8)" : selectedTarget ? "rgba(90,0,0,0.85)" : "rgba(28,8,8,0.8)", color: hasVoted ? "#444" : selectedTarget ? "#ff8888" : "#884444", border: selectedTarget && !hasVoted ? "1px solid rgba(190,0,0,0.5)" : "1px solid #140000", boxShadow: selectedTarget && !hasVoted ? "0 0 20px rgba(200,0,0,0.3)" : "none" }}>
                   {hasVoted ? "✓ VOTE CAST" : selectedTarget ? `🗡️ ELIMINATE ${players.find(p => p.walletAddress === selectedTarget)?.username?.toUpperCase()}` : "CLICK A PLAYER TO MARK"}
-                </button>
-              )}
-              {/* Night: Detective */}
-              {phase === "Night" && myRole === "Detective" && !amEliminated && (
-                <button onClick={submitInvestigation} disabled={!selectedTarget} className="flex-1 rounded-xl py-3 font-black tracking-widest text-sm transition-all"
-                  style={{ background: selectedTarget ? "rgba(0,18,75,0.85)" : "rgba(4,8,28,0.8)", color: selectedTarget ? "#88aaff" : "#5566aa", border: selectedTarget ? "1px solid rgba(25,70,200,0.5)" : "1px solid #080820", boxShadow: selectedTarget ? "0 0 20px rgba(25,70,220,0.3)" : "none" }}>
-                  {selectedTarget ? `🔍 INVESTIGATE ${players.find(p => p.walletAddress === selectedTarget)?.username?.toUpperCase()}` : "CLICK SOMEONE TO INVESTIGATE"}
                 </button>
               )}
               {/* Night: Doctor */}

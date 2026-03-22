@@ -277,7 +277,7 @@ async function teeAssignRoles(numId, vrfSeedBytes) {
 
 /**
  * Read game_state.roles[] from ER after assign_roles.
- * Returns { walletAddress → 'Mafia'|'Citizen'|'Detective' } for real players stored on-chain.
+ * Returns { walletAddress → 'Mafia'|'Citizen'|'Doctor' } for real players stored on-chain.
  * This is the authoritative role assignment — decided by the TEE, not server JS.
  *
  * GameState layout offsets:
@@ -310,7 +310,7 @@ async function readGameRolesFromER(numId) {
     if (!acct || acct.data.length < 459) return null;
     const d = acct.data;
     const playerCount = d[57];
-    const ROLE_NAMES = ['Citizen', 'Mafia', 'Detective', 'Doctor'];
+    const ROLE_NAMES = ['Citizen', 'Mafia', 'Doctor'];
     const roleMap = {};
     for (let i = 0; i < playerCount; i++) {
       const start = 58 + i * 32;
@@ -318,7 +318,7 @@ async function readGameRolesFromER(numId) {
       const wallet = new PublicKey(pubkeyBytes).toBase58();
       roleMap[wallet] = ROLE_NAMES[d[451 + i]] || 'Citizen';
     }
-    return roleMap; // { walletBase58 → 'Citizen'|'Mafia'|'Detective' }
+    return roleMap; // { walletBase58 → 'Citizen'|'Mafia'|'Doctor' }
   } catch (e) {
     console.warn('[TEE] readGameRolesFromER failed:', e.message);
     return null;
@@ -326,7 +326,7 @@ async function readGameRolesFromER(numId) {
 }
 
 async function teeSetPlayerRoles(numId, playerRoleMap) {
-  const roleToU8 = { Citizen: 0, Mafia: 1, Detective: 2, Doctor: 3 };
+  const roleToU8 = { Citizen: 0, Mafia: 1, Doctor: 3 };
   const NULL_KEY = new PublicKey("11111111111111111111111111111111");
   const gamePDA  = deriveGamePDA(numId);
 
@@ -622,9 +622,8 @@ const VOTE_GRACE_MS     = 5_000;
 function assignRoles(players, vrfSeed) {
   const wallets = Object.keys(players);
   const n = wallets.length;
-  const mafiaCount    = n >= 6 ? 2 : 1;
-  const detectiveCount = n >= 8 ? 2 : 1;
-  const doctorCount   = n >= 5 ? 1 : 0;
+  const mafiaCount  = n >= 6 ? 2 : 1;
+  const doctorCount = n >= 5 ? 1 : 0;
 
   const indices = wallets.map((_, i) => i);
   for (let i = n - 1; i > 0; i--) {
@@ -635,10 +634,9 @@ function assignRoles(players, vrfSeed) {
   const roles = {};
   for (let i = 0; i < n; i++) {
     const w = wallets[indices[i]];
-    if (i < mafiaCount)                                     roles[w] = "Mafia";
-    else if (i < mafiaCount + detectiveCount)               roles[w] = "Detective";
-    else if (i < mafiaCount + detectiveCount + doctorCount) roles[w] = "Doctor";
-    else                                                    roles[w] = "Citizen";
+    if (i < mafiaCount)                     roles[w] = "Mafia";
+    else if (i < mafiaCount + doctorCount)  roles[w] = "Doctor";
+    else                                    roles[w] = "Citizen";
   }
   return roles;
 }
@@ -712,8 +710,7 @@ function getRoleMessage(role, wallet, game) {
     const partners = getMafiaPartners(game, wallet);
     return `You are MAFIA 🔴. Partners: ${partners.join(", ") || "None"}. Eliminate citizens!`;
   }
-  if (role === "Detective") return "You are the DETECTIVE 🔵. Each night you may investigate one player.";
-  if (role === "Doctor")    return "You are the DOCTOR 💉. Each night you may protect one player from elimination.";
+  if (role === "Doctor") return "You are the DOCTOR 💉. Each night you may protect one player from elimination.";
   return "You are a CITIZEN ⚪. Find and vote out the Mafia!";
 }
 
@@ -743,7 +740,6 @@ function startNightPhase(gameId) {
         message: `MAFIA 🔴 — Partners: ${partners.join(", ") || "None"}. Choose your target.`,
       });
     }
-    if (p.role === "Detective") io.to(p.socketId).emit("your_role_private", { role: "Detective", message: "DETECTIVE 🔵 — Investigate one player tonight." });
     if (p.role === "Doctor") {
       io.to(p.socketId).emit("your_role_private", { role: "Doctor", message: "DOCTOR 💉 — Protect one player from elimination tonight." });
     }
@@ -1208,19 +1204,6 @@ io.on("connection", (socket) => {
     for (const p of Object.values(game.players)) {
       if (p.role === "Mafia" && p.socketId) io.to(p.socketId).emit("mafia_chat", msg);
     }
-  });
-
-  // ── Detective investigate ────────────────────────────────────────────
-  socket.on("investigate", ({ gameId, detectiveWallet, targetWallet }) => {
-    const game = games[gameId];
-    if (!game || game.phase !== "Night") { socket.emit("investigation_result", { message: "Investigation failed: wrong phase.", isMafia: false }); return; }
-    const detective = game.players[detectiveWallet], target = game.players[targetWallet];
-    if (!detective || detective.role !== "Detective" || detective.isEliminated) { socket.emit("investigation_result", { message: "Investigation failed: not a detective.", isMafia: false }); return; }
-    if (!target || target.isEliminated) { socket.emit("investigation_result", { message: "Investigation failed: invalid target.", isMafia: false }); return; }
-    socket.emit("investigation_result", {
-      targetWallet, targetUsername: target.username, isMafia: target.role === "Mafia",
-      message: `${target.username} is ${target.role === "Mafia" ? "🔴 MAFIA!" : target.role === "Doctor" ? "💉 the Doctor" : "⚪ Not Mafia."}`,
-    });
   });
 
   // ── Get game state ───────────────────────────────────────────────────
