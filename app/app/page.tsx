@@ -1633,6 +1633,7 @@ export default function Home() {
       const sig = await erConn.sendRawTransaction(tx.serialize(), { skipPreflight: true });
       await erConn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
       setHasProtected(true); setProtectedTarget(selectedTarget);
+      socketRef.current?.emit("protect_submitted", { gameId, doctorWallet: walletAddress, targetWallet: selectedTarget });
       notify(`💉 Protection sealed on ER! ${sig.slice(0, 14)}…`);
     } catch (e: any) {
       console.error("[Doctor] Protection TX failed:", e?.message);

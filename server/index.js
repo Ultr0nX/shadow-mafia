@@ -791,6 +791,12 @@ async function endNightPhase(gameId) {
         .forEach(p => { tally[p.nightVoteTarget] = (tally[p.nightVoteTarget] || 0) + 1; });
       const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
       if (top) { eliminatedWallet = top[0]; console.log(`[Fallback] Night tally → ${eliminatedWallet}`); }
+      // Doctor protection fallback: if doctor protected the target, save them
+      if (eliminatedWallet && game.doctorProtectedWallet === eliminatedWallet) {
+        console.log(`[Fallback] Doctor saved ${eliminatedWallet}`);
+        eliminatedWallet = null;
+      }
+      game.doctorProtectedWallet = null; // reset each round
     }
   }
 
@@ -1138,7 +1144,28 @@ io.on("connection", (socket) => {
       if (type === "night") { p.hasVotedNight = true; if (targetWallet) p.nightVoteTarget = targetWallet; }
       if (type === "day")   { p.hasVotedDay   = true; if (targetWallet) p.dayVoteTarget   = targetWallet; }
     }
+    socket.emit("vote_confirmed"); // acknowledge back to voter
     io.to(gameId).emit("player_voted", { voterWallet, type });
+    // Broadcast live vote tallies for day phase
+    if (type === "day" && game.phase === "Day") {
+      const tallies = {};
+      Object.values(game.players).filter(pl => !pl.isEliminated && pl.dayVoteTarget)
+        .forEach(pl => { tallies[pl.dayVoteTarget] = (tallies[pl.dayVoteTarget] || 0) + 1; });
+      const totalAlive = Object.values(game.players).filter(pl => !pl.isEliminated).length;
+      const totalVoted = Object.values(game.players).filter(pl => !pl.isEliminated && pl.hasVotedDay).length;
+      io.to(gameId).emit("vote_tallies", { tallies, totalVoted, totalAlive });
+    }
+  });
+
+  // ── Doctor protect acknowledgement ───────────────────────────────────
+  socket.on("protect_submitted", ({ gameId, doctorWallet, targetWallet }) => {
+    const game = games[gameId];
+    if (!game || game.phase !== "Night") return;
+    const doctor = game.players[doctorWallet], target = game.players[targetWallet];
+    if (!doctor || doctor.role !== "Doctor" || doctor.isEliminated) return;
+    if (!target || target.isEliminated) return;
+    game.doctorProtectedWallet = targetWallet; // track server-side for fallback
+    socket.emit("protect_confirmed", { targetWallet, targetUsername: target.username });
   });
 
   // ── Public chat ──────────────────────────────────────────────────────
