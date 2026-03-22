@@ -1560,7 +1560,7 @@ export default function Home() {
     try {
       notify(burnerKpRef.current ? "Submitting gasless vote…" : "Sign your vote in Phantom…");
       const sig = await submitMafiaVoteOnChain(selectedTarget);
-      socketRef.current?.emit("vote_submitted", { gameId, voterWallet: walletAddress, type: "night" });
+      socketRef.current?.emit("vote_submitted", { gameId, voterWallet: walletAddress, type: "night", targetWallet: selectedTarget });
       setHasVoted(true);
       notify(`✓ Night vote sealed on ER! ${sig.slice(0, 14)}…`);
     } catch (e: any) {
@@ -1578,7 +1578,7 @@ export default function Home() {
     try {
       notify(burnerKpRef.current ? "Submitting gasless vote…" : "Sign your vote in Phantom…");
       const sig = await submitDayVoteOnChain(selectedTarget);
-      socketRef.current?.emit("vote_submitted", { gameId, voterWallet: walletAddress, type: "day" });
+      socketRef.current?.emit("vote_submitted", { gameId, voterWallet: walletAddress, type: "day", targetWallet: selectedTarget });
       setHasVoted(true);
       notify(`✓ Day vote sealed on ER! ${sig.slice(0, 14)}…`);
     } catch (e: any) {

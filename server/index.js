@@ -784,6 +784,14 @@ async function endNightPhase(gameId) {
       console.error(`[TEE ✗] tally night ${gameId}:`, e.message?.slice(0, 120));
       io.to(gameId).emit("tee_update", { action: "endNight", status: "failed" });
     }
+    // Fallback: if ER tally returned no target, use server-tracked votes
+    if (!eliminatedWallet) {
+      const tally = {};
+      Object.values(game.players).filter(p => p.role === "Mafia" && !p.isEliminated && p.nightVoteTarget)
+        .forEach(p => { tally[p.nightVoteTarget] = (tally[p.nightVoteTarget] || 0) + 1; });
+      const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      if (top) { eliminatedWallet = top[0]; console.log(`[Fallback] Night tally → ${eliminatedWallet}`); }
+    }
   }
 
   let eliminatedRole = null;
@@ -835,6 +843,14 @@ async function endDayPhase(gameId) {
     } catch (e) {
       console.error(`[TEE ✗] tally day ${gameId}:`, e.message?.slice(0, 120));
       io.to(gameId).emit("tee_update", { action: "endDay", status: "failed" });
+    }
+    // Fallback: if ER tally returned no target, use server-tracked votes (plurality)
+    if (!eliminatedWallet) {
+      const tally = {};
+      Object.values(game.players).filter(p => !p.isEliminated && p.dayVoteTarget)
+        .forEach(p => { tally[p.dayVoteTarget] = (tally[p.dayVoteTarget] || 0) + 1; });
+      const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      if (top) { eliminatedWallet = top[0]; console.log(`[Fallback] Day tally → ${eliminatedWallet}`); }
     }
   }
 
@@ -1114,13 +1130,13 @@ io.on("connection", (socket) => {
   // Socket vote handlers removed — demo mode has been removed.
 
   // ── Vote submitted (on-chain ER vote acknowledgement from Phantom wallet) ─────
-  socket.on("vote_submitted", ({ gameId, voterWallet, type }) => {
+  socket.on("vote_submitted", ({ gameId, voterWallet, type, targetWallet }) => {
     const game = games[gameId];
     if (!game) return;
     const p = game.players[voterWallet];
     if (p) {
-      if (type === "night") p.hasVotedNight = true;
-      if (type === "day")   p.hasVotedDay   = true;
+      if (type === "night") { p.hasVotedNight = true; if (targetWallet) p.nightVoteTarget = targetWallet; }
+      if (type === "day")   { p.hasVotedDay   = true; if (targetWallet) p.dayVoteTarget   = targetWallet; }
     }
     io.to(gameId).emit("player_voted", { voterWallet, type });
   });
