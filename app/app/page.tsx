@@ -1339,9 +1339,9 @@ export default function Home() {
       const data = Buffer.alloc(26);
       Buffer.from(disc).copy(data, 0);
       data.writeUInt8(1, 8);                         // top_up = true
-      data.writeBigInt64LE(validUntil, 9);            // valid_until
+      writeU64LE(data, validUntil, 9);               // valid_until
       data.writeUInt8(1, 17);                        // Option::Some
-      data.writeBigUInt64LE(topUpLamports, 18);      // lamports
+      writeU64LE(data, topUpLamports, 18);           // lamports
 
       const ix = new TransactionInstruction({
         programId: SESSION_KEYS_PROGRAM_ID,

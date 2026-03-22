@@ -1201,10 +1201,10 @@ io.on("connection", (socket) => {
   // ── Detective investigate ────────────────────────────────────────────
   socket.on("investigate", ({ gameId, detectiveWallet, targetWallet }) => {
     const game = games[gameId];
-    if (!game || game.phase !== "Night") return;
+    if (!game || game.phase !== "Night") { socket.emit("investigation_result", { message: "Investigation failed: wrong phase.", isMafia: false }); return; }
     const detective = game.players[detectiveWallet], target = game.players[targetWallet];
-    if (!detective || detective.role !== "Detective" || detective.isEliminated) return;
-    if (!target || target.isEliminated) return;
+    if (!detective || detective.role !== "Detective" || detective.isEliminated) { socket.emit("investigation_result", { message: "Investigation failed: not a detective.", isMafia: false }); return; }
+    if (!target || target.isEliminated) { socket.emit("investigation_result", { message: "Investigation failed: invalid target.", isMafia: false }); return; }
     socket.emit("investigation_result", {
       targetWallet, targetUsername: target.username, isMafia: target.role === "Mafia",
       message: `${target.username} is ${target.role === "Mafia" ? "🔴 MAFIA!" : target.role === "Doctor" ? "💉 the Doctor" : "⚪ Not Mafia."}`,
