@@ -990,8 +990,9 @@ export default function Home() {
       playSound("protect"); setSavedMsg(`💉 Protecting ${targetUsername} tonight`);
       setTimeout(() => setSavedMsg(""), 4000);
     });
-    socket.on("investigation_result", ({ message }: { targetWallet: string; targetUsername: string; isMafia: boolean; message: string }) => {
-      playSound("investigate"); alert(`🔍 Detective Investigation:\n${message}`);
+    socket.on("investigation_result", ({ message, isMafia }: { targetWallet: string; targetUsername: string; isMafia: boolean; message: string }) => {
+      playSound("investigate");
+      notify(`🔍 ${message}`);
     });
     socket.on("chat_message", (msg: ChatMessage) => {
       setChat(prev => [...prev, msg]);
@@ -1588,7 +1589,11 @@ export default function Home() {
       setVoteInFlight(false);
     }
   }, [selectedTarget, hasVoted, voteInFlight, publicKey, numericGameId, discDayVoteIx, walletAddress, gameId, submitDayVoteOnChain]);
-  function submitInvestigation() { if (!selectedTarget) return; socketRef.current?.emit("investigate", { gameId, detectiveWallet: walletAddress, targetWallet: selectedTarget }); }
+  function submitInvestigation() {
+    if (!selectedTarget) return;
+    notify("🔍 Investigating...");
+    socketRef.current?.emit("investigate", { gameId, detectiveWallet: walletAddress, targetWallet: selectedTarget });
+  }
   async function submitProtect() {
     if (!selectedTarget || hasProtected) return;
     if (!publicKey || !numericGameId || !discDoctorProtect) { notify("Wallet not connected."); return; }
