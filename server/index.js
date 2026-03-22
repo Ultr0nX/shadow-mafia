@@ -1102,6 +1102,14 @@ io.on("connection", (socket) => {
                 if (jsRole !== erRole) {
                   console.log(`[TEE] Role sync: ${wallet.slice(0,8)}... JS=${jsRole} → ER=${erRole}`);
                   game.players[wallet].role = erRole;
+                  // Re-notify player of corrected ER role
+                  const p = game.players[wallet];
+                  if (p?.socketId) {
+                    io.to(p.socketId).emit("role_assigned", {
+                      role: erRole,
+                      message: getRoleMessage(erRole, wallet, game),
+                    });
+                  }
                 }
               }
             }
